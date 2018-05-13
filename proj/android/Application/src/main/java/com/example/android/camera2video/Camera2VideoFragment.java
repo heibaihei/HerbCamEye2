@@ -126,6 +126,7 @@ public class Camera2VideoFragment extends Fragment
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
                                               int width, int height) {
+            /** 回调中拿到SurfaceTexture，并把它设置给camera，作为承载、预览数据『流』的载体 */
             openCamera(width, height);
         }
 
@@ -142,6 +143,11 @@ public class Camera2VideoFragment extends Fragment
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+            /**
+             * 每更新一帧数据，则触发一次该回调
+             * 可以将上来的 SurfaceTexture 送给OpenGL处理
+             * */
+            int i = 0; // for test
         }
 
     };
@@ -188,6 +194,10 @@ public class Camera2VideoFragment extends Fragment
 
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
+            /**
+             * 当相机打开成功之后会回调此方法
+             * 一般在此进行获取一个全局的CameraDevice实例，开启相机预览等操作
+             */
             mCameraDevice = cameraDevice;
             startPreview();
             mCameraOpenCloseLock.release();
@@ -198,6 +208,10 @@ public class Camera2VideoFragment extends Fragment
 
         @Override
         public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+            /**
+             * 相机设备失去连接(不能继续使用)时回调此方法，同时当打开相机失败时也会调用此方法而不会调用onOpened()
+             * 可在此关闭相机，清除CameraDevice引用
+             * */
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             mCameraDevice = null;
@@ -205,6 +219,7 @@ public class Camera2VideoFragment extends Fragment
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int error) {
+            /** 相机发生错误时调用此方法 */
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             mCameraDevice = null;
@@ -214,6 +229,11 @@ public class Camera2VideoFragment extends Fragment
             }
         }
 
+        @Override
+        public void onClosed(CameraDevice camera) {
+            /** 相机完全关闭时回调此方法 */
+            super.onClosed(camera);
+        }
     };
     private Integer mSensorOrientation;
     private String mNextVideoAbsolutePath;
@@ -292,7 +312,7 @@ public class Camera2VideoFragment extends Fragment
         startBackgroundThread();
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
-        } else {
+        } else {/** 设置 监听对象 */
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
     }
@@ -450,6 +470,10 @@ public class Camera2VideoFragment extends Fragment
             }
             configureTransform(width, height);
             mMediaRecorder = new MediaRecorder();
+
+            /**
+             * 传入一个CameraDevice.StateCallback实例,以用于接收相机状态的更新和后续的处理。
+             * */
             manager.openCamera(cameraId, mStateCallback, null);
         } catch (CameraAccessException e) {
             Toast.makeText(activity, "Cannot access the camera.", Toast.LENGTH_SHORT).show();
