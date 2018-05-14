@@ -14,7 +14,6 @@ public class HbGlUtils {
     /**
      *  创建 OES 纹理对象
      * */
-    @Override
     public static int createOESTextureObj() {
         int[] targetTexture = new int[1];
 
