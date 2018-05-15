@@ -78,6 +78,10 @@ public class Camera2VideoFragment extends Fragment
     private static final int REQUEST_VIDEO_PERMISSIONS = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
+    private int mOESTextureId = -1;
+    private SurfaceTexture mOESSurfaceTexture = null;
+    private HBIRender mIRenderer = new HBIRender();
+
     private static final String[] VIDEO_PERMISSIONS = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
@@ -129,6 +133,10 @@ public class Camera2VideoFragment extends Fragment
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
                                               int width, int height) {
             /** 回调中拿到SurfaceTexture，并把它设置给camera，作为承载、预览数据『流』的载体 */
+            mOESTextureId = HbGlUtils.createOESTextureObj();
+            mIRenderer.initialRender(mTextureView, mOESTextureId, getActivity());
+            mOESSurfaceTexture = mIRenderer.OESTextureInitial();
+
             openCamera(width, height);
         }
 
@@ -518,12 +526,12 @@ public class Camera2VideoFragment extends Fragment
         }
         try {
             closePreviewSession();
-            SurfaceTexture texture = mTextureView.getSurfaceTexture();
-            assert texture != null;
-            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+//            SurfaceTexture mOESSurfaceTexture = mTextureView.getSurfaceTexture();
+//            assert mOESSurfaceTexture != null;
+            mOESSurfaceTexture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
             mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
 
-            Surface previewSurface = new Surface(texture);
+            Surface previewSurface = new Surface(mOESSurfaceTexture);
             mPreviewBuilder.addTarget(previewSurface);
 
             mCameraDevice.createCaptureSession(Collections.singletonList(previewSurface),
