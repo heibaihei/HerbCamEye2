@@ -131,7 +131,6 @@ public class Camera2VideoFragment extends Fragment
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
                                               int width, int height) {
-            /** 回调中拿到SurfaceTexture，并把它设置给camera，作为承载、预览数据『流』的载体 */
             mIRenderer.initialRender(mTextureView, getActivity());
             mOESSurfaceTexture = mIRenderer.getOESSurfaceTexture();
 
@@ -139,8 +138,7 @@ public class Camera2VideoFragment extends Fragment
         }
 
         @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture,
-                                                int width, int height) {
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
             configureTransform(width, height);
         }
 

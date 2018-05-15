@@ -9,8 +9,6 @@ import android.os.HandlerThread;
 import android.os.Message;
 import android.view.TextureView;
 
-import java.nio.FloatBuffer;
-
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.egl.EGLContext;
@@ -35,8 +33,6 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
     private HandlerThread mRenderThreadHandler;
     private Handler mRenderHandler;
 
-    private int mShaderProgram = -1;
-    private FloatBuffer mDataBuffer = null;
     private HBFilterEngine mFilterEngine;
     private float[] transformMatrix = new float[16];
 
@@ -64,10 +60,7 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
                 switch (msg.what) {
                     case MSG_RENDER_INIT: {
                             EGLContextInitial(mTextureView.getSurfaceTexture());
-
                             mFilterEngine = new HBFilterEngine(mOESTextureId, mContext);
-                            mDataBuffer = mFilterEngine.getBuffer();
-                            mShaderProgram = mFilterEngine.getShaderProgram();
                         }
                         return;
                     case MSG_RENDER_UPDATE:
