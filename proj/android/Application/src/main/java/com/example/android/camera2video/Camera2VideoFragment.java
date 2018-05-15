@@ -78,7 +78,6 @@ public class Camera2VideoFragment extends Fragment
     private static final int REQUEST_VIDEO_PERMISSIONS = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    private int mOESTextureId = -1;
     private SurfaceTexture mOESSurfaceTexture = null;
     private HBIRender mIRenderer = new HBIRender();
 
@@ -133,9 +132,8 @@ public class Camera2VideoFragment extends Fragment
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
                                               int width, int height) {
             /** 回调中拿到SurfaceTexture，并把它设置给camera，作为承载、预览数据『流』的载体 */
-            mOESTextureId = HbGlUtils.createOESTextureObj();
-            mIRenderer.initialRender(mTextureView, mOESTextureId, getActivity());
-            mOESSurfaceTexture = mIRenderer.OESTextureInitial();
+            mIRenderer.initialRender(mTextureView, getActivity());
+            mOESSurfaceTexture = mIRenderer.getOESSurfaceTexture();
 
             openCamera(width, height);
         }
@@ -154,10 +152,8 @@ public class Camera2VideoFragment extends Fragment
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
             /**
-             * 每更新一帧数据，则触发一次该回调
-             * 可以将上来的 SurfaceTexture 送给OpenGL处理
+             * 每更新一帧数据，则触发一次该回调, 可以将上来的 SurfaceTexture 送给OpenGL处理
              * */
-            int i = 0; // for test
         }
 
     };

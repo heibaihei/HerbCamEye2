@@ -22,9 +22,9 @@ import javax.microedition.khronos.egl.EGLSurface;
  */
 
 public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
-    private static final int MSG_INIT = 1;
-    private static final int MSG_RENDER = 2;
-    private static final int MSG_DEINIT = 3;
+    private static final int MSG_RENDER_INIT = 1;
+    private static final int MSG_RENDER_UPDATE = 2;
+    private static final int MSG_RENDER_DEINIT = 3;
 
 
     private Context mContext;
@@ -36,20 +36,24 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
     private Handler mRenderHandler;
 
     private int mShaderProgram = -1;
-    private FloatBuffer mDataBuffer;
+    private FloatBuffer mDataBuffer = null;
     private HBFilterEngine mFilterEngine;
     private float[] transformMatrix = new float[16];
 
+    /** About EGL Display */
     private EGL10 mEgl = null;
     private EGLDisplay mEGLDisplay = EGL10.EGL_NO_DISPLAY;
     private EGLConfig[] mEGLConfig = new EGLConfig[1];
     private EGLSurface mEglSurface;
     private EGLContext mEGLContext = EGL10.EGL_NO_CONTEXT;
 
-    public void initialRender(TextureView textureView, int oesTextureId, Context context) {
+    public void initialRender(TextureView textureView, Context context) {
         mContext = context;
         mTextureView = textureView;
-        mOESTextureId = oesTextureId;
+        mOESTextureId = HbGlUtils.createOESTextureObj();
+
+        mOESSurfaceTexture = new SurfaceTexture(mOESTextureId);
+        mOESSurfaceTexture.setOnFrameAvailableListener(this);
 
         mRenderThreadHandler = new HandlerThread("IRender Thread");
         mRenderThreadHandler.start();
@@ -58,13 +62,18 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
             @Override
             public void handleMessage(Message msg) {
                 switch (msg.what) {
-                    case MSG_INIT:
-                        initEGL();
+                    case MSG_RENDER_INIT: {
+                            EGLContextInitial(mTextureView.getSurfaceTexture());
+
+                            mFilterEngine = new HBFilterEngine(mOESTextureId, mContext);
+                            mDataBuffer = mFilterEngine.getBuffer();
+                            mShaderProgram = mFilterEngine.getShaderProgram();
+                        }
                         return;
-                    case MSG_RENDER:
+                    case MSG_RENDER_UPDATE:
                         drawFrame();
                         return;
-                    case MSG_DEINIT:
+                    case MSG_RENDER_DEINIT:
                         return;
                     default:
                         return;
@@ -72,20 +81,18 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
             }
         };
 
-        mRenderHandler.sendEmptyMessage(MSG_INIT);
+        mRenderHandler.sendEmptyMessage(MSG_RENDER_INIT);
     }
 
-    private void initEGL() {
+    private void EGLContextInitial(SurfaceTexture surfaceTexture) {
         mEgl = (EGL10) EGLContext.getEGL();
         mEGLDisplay = mEgl.eglGetDisplay(EGL10.EGL_DEFAULT_DISPLAY);
-        if (mEGLDisplay == EGL10.EGL_NO_DISPLAY) {
+        if (mEGLDisplay == EGL10.EGL_NO_DISPLAY)
             throw new RuntimeException("eglGetDisplay failed! " + mEgl.eglGetError());
-        }
 
         int[] version = new int[2];
-        if (!mEgl.eglInitialize(mEGLDisplay, version)) {
+        if (!mEgl.eglInitialize(mEGLDisplay, version))
             throw new RuntimeException("eglInitialize failed! " + mEgl.eglGetError());
-        }
 
         int[] attributes = {
                 //颜色缓冲区R、G、B、A分量的位数
@@ -99,14 +106,11 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
                 EGL10.EGL_SURFACE_TYPE, EGL10.EGL_WINDOW_BIT,
                 EGL10.EGL_NONE
         };
+
         int[] configsNum = new int[1];
         if (!mEgl.eglChooseConfig(mEGLDisplay, attributes, mEGLConfig, 1, configsNum)) {
             throw new RuntimeException("eglChooseConfig failed! " + mEgl.eglGetError());
         }
-
-        SurfaceTexture surfaceTexture = mTextureView.getSurfaceTexture();
-        if (surfaceTexture == null)
-            return;
 
         mEglSurface = mEgl.eglCreateWindowSurface(mEGLDisplay, mEGLConfig[0], surfaceTexture, null);
         int[] contextAttribs = {
@@ -124,10 +128,6 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
         if (!mEgl.eglMakeCurrent(mEGLDisplay,mEglSurface, mEglSurface, mEGLContext)) {
             throw new RuntimeException("eglMakeCurrent failed! " + mEgl.eglGetError());
         }
-
-        mFilterEngine = new HBFilterEngine(mOESTextureId, mContext);
-        mDataBuffer = mFilterEngine.getBuffer();
-        mShaderProgram = mFilterEngine.getShaderProgram();
     }
 
     private void drawFrame() {
@@ -137,8 +137,8 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
         }
 
         mEgl.eglMakeCurrent(mEGLDisplay, mEglSurface, mEglSurface, mEGLContext);
-        initialGLContext(mTextureView.getWidth(), mTextureView.getHeight());
-        if (updateTexture() == true) {
+        glContextInitial(mTextureView.getWidth(), mTextureView.getHeight());
+        if (mFilterEngine.drawTexture(transformMatrix) == true) {
             mEgl.eglSwapBuffers(mEGLDisplay, mEglSurface);
         }
     }
@@ -146,22 +146,12 @@ public class HBIRender implements SurfaceTexture.OnFrameAvailableListener {
     @Override
     public void onFrameAvailable(SurfaceTexture surfaceTexture) {
         if (mRenderHandler != null)
-            mRenderHandler.sendEmptyMessage(MSG_RENDER);
+            mRenderHandler.sendEmptyMessage(MSG_RENDER_UPDATE);
     }
 
-    public SurfaceTexture OESTextureInitial() {
-        mOESSurfaceTexture = new SurfaceTexture(mOESTextureId);
-        mOESSurfaceTexture.setOnFrameAvailableListener(this);
-        return mOESSurfaceTexture;
-    }
+    public SurfaceTexture getOESSurfaceTexture() { return mOESSurfaceTexture; }
 
-    private boolean updateTexture() {
-        if (mFilterEngine.drawTexture(transformMatrix) != true)
-            return false;
-        return true;
-    }
-
-    private void initialGLContext(int width, int height) {
+    private void glContextInitial(int width, int height) {
         GLES20.glViewport(0,0, width, height);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glClearColor(1f, 1f, 0f, 0f);
